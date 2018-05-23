@@ -34,7 +34,7 @@ func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Could not parse login credentials"))
 		}else{
-			for _,validUser := range provider.ProvideValidUser(){
+			for _,validUser := range provider.ProvideValidUsers(){
 				if user.Username == validUser.username && user.Password == validUser.hashedPassword{
 					matchFlag = true
 					json.NewEncoder(w).Encode(GenerateToken(mapMinimalUserToInternalUser(validUser)))
@@ -92,7 +92,7 @@ func mapMinimalUserToInternalUser(user MinimalUser) JWTUser {
 
 type UserProvider interface {
 
-	ProvideValidUser() []MinimalUser
+	ProvideValidUsers() []MinimalUser
 }
 
 type MinimalUser struct{

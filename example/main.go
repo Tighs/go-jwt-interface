@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"github.com/gorilla/mux"
 	"go-jwt-interface/api"
-	"go-jwt-interface/mockImpl"
+	"go-jwt-interface/example/mockimpl"
 )
 
 func main(){
 
-	provider := mockImpl.UserProviderImpl{}
+	provider := mockimpl.UserProviderImpl{}
 	provider.Init()
 	api.LoadUserProvider(provider)
 
@@ -24,5 +24,7 @@ func main(){
 func endpoint(w http.ResponseWriter, req *http.Request){
 	w.Write([]byte("TEST"))
 }
+
+
 
 

@@ -9,11 +9,6 @@ import (
 	"errors"
 )
 
-const (
-	keyPath = "keys/app.rsa"
-	pubkeyPath = "keys/app.rsa.pub"
-)
-
 var signingKey, verifyKey []byte
 
 func init(){
@@ -24,6 +19,10 @@ func init(){
 
 func loadKeys(){
 	var err error
+
+	keyPath := xmlKey.Path + xmlKey.Name
+	pubkeyPath := keyPath+".pub"
+
 	signingKey, err = ioutil.ReadFile(keyPath)
 	verifyKey, err = ioutil.ReadFile(pubkeyPath)
 
