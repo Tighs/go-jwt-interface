@@ -15,7 +15,7 @@ func LoadUserProvider(p UserProvider){
 
 func AdjustMuxEndpoints(router *mux.Router){
 
-	router.Use(SecureRoute)
+	router.Use(secureRoute)
 
 	xmlEndpoints := provideEndpoints()
 	for _,endpoint := range xmlEndpoints.Endpoints{
@@ -25,7 +25,7 @@ func AdjustMuxEndpoints(router *mux.Router){
 
 func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
 
-	var user LoginCredentials
+	var user loginCredentials
 	var matchFlag bool
 
 	json.NewDecoder(req.Body).Decode(&user)
@@ -35,9 +35,9 @@ func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
 			w.Write([]byte("Could not parse login credentials"))
 		}else{
 			for _,validUser := range provider.ProvideValidUsers(){
-				if user.Username == validUser.username && user.Password == validUser.hashedPassword{
+				if user.Username == validUser.Username && user.Password == validUser.HashedPassword {
 					matchFlag = true
-					json.NewEncoder(w).Encode(GenerateToken(mapMinimalUserToInternalUser(validUser)))
+					json.NewEncoder(w).Encode(generateToken(mapMinimalUserToInternalUser(validUser)))
 				}
 			}
 			if !matchFlag{
@@ -51,13 +51,13 @@ func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
 
 func provideSecuredEndpoint(w http.ResponseWriter, req *http.Request) error{
 
-	_,err := VerifyTokenExtractClaims(req)
+	_,err := verifyTokenExtractClaims(req)
 
 	return err
 }
 
 //Middleware to secure the given route
-func SecureRoute(h http.Handler) http.Handler {
+func secureRoute(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		endpoints := findEndpoints(r.RequestURI)
 
@@ -78,14 +78,11 @@ func SecureRoute(h http.Handler) http.Handler {
 	})
 }
 
-func GenerateMinimalUser(id int64, username string ,hashedPassword string) MinimalUser {
-	return MinimalUser{id,username,hashedPassword}
-}
-
 func mapMinimalUserToInternalUser(user MinimalUser) JWTUser {
 
 	var jwtUser JWTUser
-	jwtUser.Id = user.databaseId
+	jwtUser.ID = user.DatabaseId
+	jwtUser.Role = user.Role
 	return jwtUser
 
 }
@@ -96,7 +93,8 @@ type UserProvider interface {
 }
 
 type MinimalUser struct{
-	databaseId int64
-	username string
-	hashedPassword string
+	DatabaseId     uint64
+	Username       string
+	HashedPassword string
+	Role           []string
 }

@@ -12,8 +12,8 @@ var configFilePath = "config/endpoints.xml"
 var keyFilePath = "config/key.xml"
 var endpointFile io.Reader
 var keyFile io.Reader
-var xmlEndpoints XMLEndpoints
-var xmlKey XMLKey
+var endpoints xmlEndpoints
+var key xmlKey
 
 func init(){
 
@@ -29,14 +29,14 @@ func loadConfigFile(){
 		log.Fatal("could not read config endpointFile (config/endpoints.xml)")
 	}
 
-	xmlEndpoints,err = readEndpoints(endpointFile)
+	endpoints,err = readEndpoints(endpointFile)
 
 	if err != nil {
 		log.Println("error in reading endpoints.xml config endpointFile: ")
 		log.Fatal(err)
 	}
-		log.Printf("Loading %d endpoints:",len(xmlEndpoints.Endpoints))
-	for _,endpoint := range xmlEndpoints.Endpoints{
+		log.Printf("Loading %d endpoints:",len(endpoints.Endpoints))
+	for _,endpoint := range endpoints.Endpoints{
 		log.Printf("type:%s path:%s method:%s",endpoint.Type,endpoint.Path,endpoint.Method)
 	}
 
@@ -46,7 +46,7 @@ func loadConfigFile(){
 		log.Fatal("could not read config keyFile (config/key.xml)")
 	}
 
-	xmlKey,err = readKey(keyFile)
+	key,err = readKey(keyFile)
 
 	if err != nil {
 		log.Println("error in reading key.xml: ")
@@ -54,14 +54,14 @@ func loadConfigFile(){
 
 	}
 	log.Println("Loading Key:")
-	log.Printf("KeyPair %s loaded ", xmlKey.Name)
+	log.Printf("KeyPair %s loaded ", key.Name)
 }
 
-func findEndpoints(path string) []XMLEndpoint{
+func findEndpoints(path string) []xmlEndpoint {
 
-	var list []XMLEndpoint
+	var list []xmlEndpoint
 
-	for _,endpoint := range xmlEndpoints.Endpoints{
+	for _,endpoint := range endpoints.Endpoints{
 		if endpoint.Path == path{
 			list = append(list,endpoint)
 		}
@@ -69,54 +69,54 @@ func findEndpoints(path string) []XMLEndpoint{
 	return list
 }
 
-func provideEndpoints() XMLEndpoints{
+func provideEndpoints() xmlEndpoints {
 
-	return xmlEndpoints
+	return endpoints
 
 }
 
-func readEndpoints(reader io.Reader) (XMLEndpoints, error) {
-	var xmlEndpoints XMLEndpoints
-	if err := xml.NewDecoder(reader).Decode(&xmlEndpoints); err != nil {
-		return XMLEndpoints{}, err
+func readEndpoints(reader io.Reader) (xmlEndpoints, error) {
+	var endpoints xmlEndpoints
+	if err := xml.NewDecoder(reader).Decode(&endpoints); err != nil {
+		return xmlEndpoints{}, err
 	}
 
-	for _,endpoint := range xmlEndpoints.Endpoints{
+	for _,endpoint := range endpoints.Endpoints{
 		if  endpoint.Type == "" || endpoint.Path == "" ||  endpoint.Method == "" {
-			return XMLEndpoints{},errors.New("endpoint values must be present")
+			return xmlEndpoints{},errors.New("endpoint values must be present")
 		}
 	}
 
-	return xmlEndpoints, nil
+	return endpoints, nil
 }
 
-func readKey(reader io.Reader) (XMLKey,error){
-	var xmlKey XMLKey
+func readKey(reader io.Reader) (xmlKey,error){
+	var key xmlKey
 
-	if err := xml.NewDecoder(reader).Decode(&xmlKey); err != nil {
-		return XMLKey{},err
+	if err := xml.NewDecoder(reader).Decode(&key); err != nil {
+		return xmlKey{},err
 	}
 
-	if xmlKey.Name == "" || xmlKey.Method == "" || xmlKey.Path == ""{
-		return XMLKey{},errors.New("key values name,method,path must be present")
+	if key.Name == "" || key.Method == "" || key.Path == ""{
+		return xmlKey{},errors.New("key values name,method,path must be present")
 	}
 
-	return xmlKey,nil
+	return key,nil
 }
 
-type XMLEndpoint struct {
+type xmlEndpoint struct {
 	XMLName xml.Name `xml:"endpoint"`
 	Type string `xml:"type,attr"`
 	Path string `xml:"path,attr"`
 	Method string `xml:"method,attr"`
 }
 
-type XMLEndpoints struct {
-	XMLName xml.Name `xml:"endpoints"`
-	Endpoints []XMLEndpoint `xml:"endpoint"`
+type xmlEndpoints struct {
+	XMLName xml.Name        `xml:"endpoints"`
+	Endpoints []xmlEndpoint `xml:"endpoint"`
 }
 
-type XMLKey struct {
+type xmlKey struct {
 	XMLName xml.Name `xml:"key"`
 	Name string `xml:"name,attr"`
 	Method string `xml:"method,attr"`

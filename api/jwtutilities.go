@@ -20,7 +20,7 @@ func init(){
 func loadKeys(){
 	var err error
 
-	keyPath := xmlKey.Path + xmlKey.Name
+	keyPath := key.Path + key.Name
 	pubkeyPath := keyPath+".pub"
 
 	signingKey, err = ioutil.ReadFile(keyPath)
@@ -32,13 +32,13 @@ func loadKeys(){
 	}
 }
 
-func GenerateToken(user JWTUser) Token{
+func generateToken(user JWTUser) token {
 
 	key,_ := jwt.ParseRSAPrivateKeyFromPEM(signingKey)
 
 	signer := jwt.New(jwt.SigningMethodRS256)
 
-	signer.Claims = &CustomClaims{
+	signer.Claims = &customClaims{
 		&jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Minute * 30).Unix(),
 		},
@@ -52,16 +52,16 @@ func GenerateToken(user JWTUser) Token{
 		log.Printf("Error signing token: %v\n", err)
 	}
 
-	token := Token{Token:tokenString}
+	token := token{Token:tokenString}
 	return token
 }
 
-func VerifyTokenExtractClaims(req *http.Request) (CustomClaims,error) {
+func verifyTokenExtractClaims(r *http.Request) (customClaims,error) {
 
-	claims := CustomClaims{}
+	claims := customClaims{}
 	var err error
 
-	tokenString := extractJWTFromHttpRequest(req)
+	tokenString := extractJWTFromHttpRequest(r)
 
 	if len(tokenString) >0 {
 
@@ -89,33 +89,35 @@ func extractJWTFromHttpRequest(r *http.Request) string {
 	return tokenString
 }
 
-type CustomClaims struct{
+func ExtractUserFromValidToken(r * http.Request) (JWTUser,error){
+	claims,err := verifyTokenExtractClaims(r)
+
+	if err == nil {
+		return claims.JWTUser,nil
+	}
+	return JWTUser{},err
+}
+
+type customClaims struct{
 
 	*jwt.StandardClaims
 	TokenType string
 	JWTUser
 }
 
-type LoginCredentials struct{
+type loginCredentials struct{
 
-	Username string `json:"username"`
+	Username string `json:"Username"`
 	Password string `json:"password"`
 	jwt.StandardClaims
 
 }
 
 type JWTUser struct {
-	Id int64 `json:"id"`
-	Name string `json:"name"`
-	FirstName string `json:"firstName"`
-	Title string `json:"title"`
-	Age int `json:"age"`
-	Address string `json:"address"`
-	Position string `json:"position"`
-	Department string `json:"department"`
-	Additional []string `json:"additional"`
+	ID   uint64  `json:"id"`
+	Role []string `json:"Role"`
 }
 
-type Token struct {
-	Token string `json:"Token"`
+type token struct {
+	Token string `json:"token"`
 }

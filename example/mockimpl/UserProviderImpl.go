@@ -7,9 +7,9 @@ type UserProviderImpl struct {
 }
 
 func (provider *UserProviderImpl) Init(){
-	provider.UserList = append(provider.UserList,api.GenerateMinimalUser(151235,"test","test"))
-	provider.UserList = append(provider.UserList,api.GenerateMinimalUser(919123,"admin","admin"))
-	provider.UserList = append(provider.UserList,api.GenerateMinimalUser(712736213,"foo","bar"))
+	provider.UserList = append(provider.UserList,api.MinimalUser{151235,"test","test",[]string{"admin","member"}})
+	provider.UserList = append(provider.UserList,api.MinimalUser{919123,"admin","admin",[]string{"sysadmin","member"}})
+	provider.UserList = append(provider.UserList,api.MinimalUser{712736213,"foo","bar",[]string{"member"}})
 }
 
 func (provider UserProviderImpl) ProvideValidUsers() []api.MinimalUser{

@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"go-jwt-interface/api"
 	"go-jwt-interface/example/mockimpl"
+	"encoding/json"
 )
 
 func main(){
@@ -21,8 +22,12 @@ func main(){
 	log.Fatal(http.ListenAndServe(":8080",router))
 }
 
-func endpoint(w http.ResponseWriter, req *http.Request){
-	w.Write([]byte("TEST"))
+func endpoint(w http.ResponseWriter, r *http.Request){
+	jwtUser,err := api.ExtractUserFromValidToken(r)
+
+	if err == nil {
+		json.NewEncoder(w).Encode(jwtUser)
+	}
 }
 
 
