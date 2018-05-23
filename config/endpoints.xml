@@ -1,5 +1,0 @@
-<endpoints>
-    <endpoint type="login" path="/login" method="POST"/>
-    <endpoint type="secured" path="/secured" method="GET"/>
-    <endpoint type="secured" path="/foo" method="GET"/>
-</endpoints>

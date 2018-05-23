@@ -1,0 +1,9 @@
+<config>
+    <key name="app-1024.rsa" method="rsa" size="1024" path="example/keys/" passphrase=""/>
+    <endpoints>
+        <endpoint type="login" path="/login" method="POST"/>
+        <endpoint type="secured" path="/secured" method="GET"/>
+        <endpoint type="default" path="/foo" method="GET"/>
+    </endpoints>
+    <token expiration="30" refreshable="true"/>
+</config>

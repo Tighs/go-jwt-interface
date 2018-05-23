@@ -8,12 +8,9 @@ import (
 	"errors"
 )
 
-var configFilePath = "config/endpoints.xml"
-var keyFilePath = "config/key.xml"
-var endpointFile io.Reader
-var keyFile io.Reader
-var endpoints xmlEndpoints
-var key xmlKey
+var configFilePath = "config/config.xml"
+var configFile io.Reader
+var config xmlConfiguration
 
 func init(){
 
@@ -24,44 +21,39 @@ func loadConfigFile(){
 
 	var err error
 
-	endpointFile,err = os.Open(configFilePath)
+	configFile,err = os.Open(configFilePath)
 	if err != nil {
-		log.Fatal("could not read config endpointFile (config/endpoints.xml)")
+		log.Fatal("could not read config file (config/config.xml)")
 	}
 
-	endpoints,err = readEndpoints(endpointFile)
+	var errorList []error
 
-	if err != nil {
-		log.Println("error in reading endpoints.xml config endpointFile: ")
-		log.Fatal(err)
+	config,errorList = readConfigFile(configFile)
+
+	if len(errorList) > 0{
+
+		log.Println("Error occured while reading the config file:")
+		for _,msg := range errorList{
+			log.Println(msg)
+		}
+		log.Fatal("Abort due to previous errors")
 	}
-		log.Printf("Loading %d endpoints:",len(endpoints.Endpoints))
-	for _,endpoint := range endpoints.Endpoints{
+
+		log.Printf("Loading %d endpoints:",len(config.Endpoints.EndpointList))
+	for _,endpoint := range config.Endpoints.EndpointList {
 		log.Printf("type:%s path:%s method:%s",endpoint.Type,endpoint.Path,endpoint.Method)
 	}
 
-	keyFile,err = os.Open(keyFilePath)
-
-	if err != nil {
-		log.Fatal("could not read config keyFile (config/key.xml)")
-	}
-
-	key,err = readKey(keyFile)
-
-	if err != nil {
-		log.Println("error in reading key.xml: ")
-		log.Fatal(err)
-
-	}
 	log.Println("Loading Key:")
-	log.Printf("KeyPair %s loaded ", key.Name)
+	log.Printf("KeyPair %s loaded ", config.Key.Name)
 }
+
 
 func findEndpoints(path string) []xmlEndpoint {
 
 	var list []xmlEndpoint
 
-	for _,endpoint := range endpoints.Endpoints{
+	for _,endpoint := range config.Endpoints.EndpointList {
 		if endpoint.Path == path{
 			list = append(list,endpoint)
 		}
@@ -71,37 +63,35 @@ func findEndpoints(path string) []xmlEndpoint {
 
 func provideEndpoints() xmlEndpoints {
 
-	return endpoints
+	return config.Endpoints
 
 }
 
-func readEndpoints(reader io.Reader) (xmlEndpoints, error) {
-	var endpoints xmlEndpoints
-	if err := xml.NewDecoder(reader).Decode(&endpoints); err != nil {
-		return xmlEndpoints{}, err
+func readConfigFile(reader io.Reader) (xmlConfiguration,[]error){
+	var config xmlConfiguration
+	var errorList []error
+	if err := xml.NewDecoder(reader).Decode(&config); err != nil {
+		return xmlConfiguration{},[]error{err}
 	}
 
-	for _,endpoint := range endpoints.Endpoints{
+	for _,endpoint := range config.Endpoints.EndpointList {
 		if  endpoint.Type == "" || endpoint.Path == "" ||  endpoint.Method == "" {
-			return xmlEndpoints{},errors.New("endpoint values must be present")
+			errorList =append(errorList, errors.New("endpoint values must be present"))
 		}
 	}
 
-	return endpoints, nil
-}
-
-func readKey(reader io.Reader) (xmlKey,error){
-	var key xmlKey
-
-	if err := xml.NewDecoder(reader).Decode(&key); err != nil {
-		return xmlKey{},err
+	if config.Key.Name == "" || config.Key.Method == "" || config.Key.Path == ""{
+		errorList =append(errorList, errors.New("key values name,method and path must be present"))
 	}
 
-	if key.Name == "" || key.Method == "" || key.Path == ""{
-		return xmlKey{},errors.New("key values name,method,path must be present")
+	if config.Token.Expiration == 0{
+		config.Token.Expiration = 30
 	}
 
-	return key,nil
+	if len(errorList) > 0{
+		return xmlConfiguration{},errorList
+	}
+	return config,nil
 }
 
 type xmlEndpoint struct {
@@ -112,8 +102,8 @@ type xmlEndpoint struct {
 }
 
 type xmlEndpoints struct {
-	XMLName xml.Name        `xml:"endpoints"`
-	Endpoints []xmlEndpoint `xml:"endpoint"`
+	XMLName      xml.Name      `xml:"endpoints"`
+	EndpointList []xmlEndpoint `xml:"endpoint"`
 }
 
 type xmlKey struct {
@@ -123,4 +113,17 @@ type xmlKey struct {
 	Size string `xml:"size,attr"`
 	Path string `xml:"path,attr"`
 	PassPhrase string `xml:"passphrase,attr"`
+}
+
+type xmlToken struct{
+	XMLName xml.Name `xml:"token"`
+	Expiration int `xml:"expiration,attr"`
+	Refreshable bool `xml:"refreshable,attr"`
+}
+
+type xmlConfiguration struct {
+	XMLName xml.Name `xml:"config"`
+	Key xmlKey `xml:"key"`
+	Endpoints xmlEndpoints `xml:"endpoints"`
+	Token xmlToken `xml:"token"`
 }

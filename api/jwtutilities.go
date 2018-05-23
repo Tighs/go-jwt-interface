@@ -20,11 +20,11 @@ func init(){
 func loadKeys(){
 	var err error
 
-	keyPath := key.Path + key.Name
-	pubkeyPath := keyPath+".pub"
+	keyPath := config.Key.Path + config.Key.Name
+	pubKeyPath := keyPath+".pub"
 
 	signingKey, err = ioutil.ReadFile(keyPath)
-	verifyKey, err = ioutil.ReadFile(pubkeyPath)
+	verifyKey, err = ioutil.ReadFile(pubKeyPath)
 
 	if err != nil {
 		log.Fatal("Could not read rsa signingKey-pair")
@@ -38,9 +38,9 @@ func generateToken(user JWTUser) token {
 
 	signer := jwt.New(jwt.SigningMethodRS256)
 
-	signer.Claims = &customClaims{
+		signer.Claims = &customClaims{
 		&jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Minute * 30).Unix(),
+			ExpiresAt: time.Now().Add(time.Minute * time.Duration(config.Token.Expiration)).Unix(),
 		},
 		"Level1",
 		user,

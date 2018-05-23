@@ -18,7 +18,7 @@ func AdjustMuxEndpoints(router *mux.Router){
 	router.Use(secureRoute)
 
 	xmlEndpoints := provideEndpoints()
-	for _,endpoint := range xmlEndpoints.Endpoints{
+	for _,endpoint := range xmlEndpoints.EndpointList {
 		router.NewRoute().Path(endpoint.Path).Methods(endpoint.Method)
 	}
 }

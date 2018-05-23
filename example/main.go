@@ -18,6 +18,10 @@ func main(){
 	router := mux.NewRouter()
 	router.HandleFunc("/secured",endpoint)
 	router.HandleFunc("/foo",endpoint)
+	router.HandleFunc("/bar", func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+		writer.Write([]byte("blubb"))
+	})
 	api.AdjustMuxEndpoints(router)
 	log.Fatal(http.ListenAndServe(":8080",router))
 }
