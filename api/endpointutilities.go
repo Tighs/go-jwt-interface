@@ -5,64 +5,51 @@ import (
 	"encoding/json"
 	"log"
 	"github.com/gorilla/mux"
+	"github.com/julienschmidt/httprouter"
+	"github.com/urfave/negroni"
 )
 
 var provider UserProvider
-var securedRouteMap map[string]bool
 
 func ManageMuxRouter(p UserProvider, routerList ...*mux.Router){
 
 	provider = p
 
-	endpoint,err := findLoginEndpoint()
-	var loginEndpoint string
-	if err == nil {
-		loginEndpoint = endpoint.Path
-	}else{
-		loginEndpoint = "/login"
+	loginEndpoint := findLoginEndpoint()
+	if len(routerList) == 0{
+		log.Fatal("no router found")
 	}
-	routerList[0].HandleFunc(loginEndpoint, provideLoginEndpoint)
-	securedRouteMap = make(map[string]bool)
+	routerList[0].HandleFunc(loginEndpoint, createLoginEndpoint)
 
 	for _, router := range routerList{
-		initSecurePathList(router)
 
-		router.Use(secureRoute)
-	}
-	log.Println(securedRouteMap)
-}
-
-func initSecurePathList(router *mux.Router){
-	for _,route := range readRoutes(router){
-		tpl,err := route.GetPathTemplate()
-		if err == nil {
-			if isSecuredPartRoute(tpl) || isSecuredEndpoint(tpl) {
-				securedRouteMap[tpl] = true
-			}else{
-				securedRouteMap[tpl] = false
-			}
-		}
+		router.Use(secureRouteMiddleware)
 	}
 }
 
-func readRoutes(router *mux.Router) []mux.Route{
+func ManageNegroni(p UserProvider) *negroni.Negroni{
 
-	var routes []mux.Route
+	provider = p
 
-	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		routes = append(routes,*route)
-		return nil
-	})
+	var secured negroni.Negroni
 
-	return routes
+	secured.Use(negroni.HandlerFunc(secureRouteNegroniMiddleware))
+
+	return &secured
 }
 
-func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
+func GenerateLoginEndpointForHttprouter(router *httprouter.Router){
 
+	loginEndpoint := findLoginEndpoint()
+
+	router.POST(loginEndpoint, httpRouterHandle())
+}
+
+func createLoginEndpoint(w http.ResponseWriter, r *http.Request){
 	var user loginCredentials
 	var matchFlag bool
 
-	json.NewDecoder(req.Body).Decode(&user)
+	json.NewDecoder(r.Body).Decode(&user)
 	if provider != nil{
 		if user.Username == "" && user.Password == ""{
 			w.WriteHeader(http.StatusBadRequest)
@@ -83,7 +70,14 @@ func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
 	}
 }
 
-func provideSecuredEndpoint(req *http.Request) error{
+func httpRouterHandle() httprouter.Handle{
+
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		createLoginEndpoint(w,r)
+	}
+}
+
+func securedEndpointHandler(req *http.Request) error{
 
 	_,err := verifyTokenExtractClaims(req)
 
@@ -91,21 +85,37 @@ func provideSecuredEndpoint(req *http.Request) error{
 }
 
 //middleware to secure all routes after the given router/subRouter
-func secureRoute(h http.Handler) http.Handler{
+func secureRouteMiddleware(h http.Handler) http.Handler{
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if securedRouteMap[r.RequestURI]{
-			err := provideSecuredEndpoint(r)
+		if isSecuredPartRoute(r.RequestURI) || isSecuredEndpoint(r.RequestURI){
+			err := securedEndpointHandler(r)
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 			}else if h != nil{
 				h.ServeHTTP(w,r)
 			}
-		}else{
+		}else if h != nil{
 			h.ServeHTTP(w,r)
 		}
 	})
 }
+
+func secureRouteNegroniMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+
+	if isSecuredPartRoute(r.RequestURI) || isSecuredEndpoint(r.RequestURI){
+		err := securedEndpointHandler(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+		}else {
+			next(w,r)
+		}
+	}else{
+		next(w,r)
+	}
+}
+
+
 
 func mapMinimalUserToInternalUser(user MinimalUser) JWTUser {
 
