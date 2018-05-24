@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"github.com/gorilla/mux"
 	"go-jwt-interface/api"
@@ -13,17 +12,33 @@ func main(){
 
 	provider := mockimpl.UserProviderImpl{}
 	provider.Init()
-	api.LoadUserProvider(provider)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/secured",endpoint)
-	router.HandleFunc("/foo",endpoint)
-	router.HandleFunc("/bar", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-		writer.Write([]byte("blubb"))
-	})
-	api.AdjustMuxEndpoints(router)
-	log.Fatal(http.ListenAndServe(":8080",router))
+	router.HandleFunc("/foo",testEndpoint)
+	router.HandleFunc("/secured/test",testEndpoint)
+	router.HandleFunc("/secured",testEndpoint)
+	router.HandleFunc("/test/test",testEndpoint)
+	s := router.PathPrefix("/foo").Subrouter()
+	s.HandleFunc("/bar",testEndpoint)
+	api.ManageMuxRouter(provider,router,s)
+
+
+	/*router.HandleFunc("/foo",testEndpoint)
+	router.HandleFunc("/secured/foo",testEndpoint)
+	s := router.PathPrefix("/foo").Subrouter()
+	s.HandleFunc("/bar",testEndpoint)
+	s.HandleFunc("/bar2",testEndpoint)
+	s.HandleFunc("/bar/test",testEndpoint)
+	api.secureMuxRouterEndpoints(router)
+	api.secureRoutes(s)*/
+	http.ListenAndServe(":8080", router)
+}
+
+
+
+func testEndpoint(w http.ResponseWriter, r *http.Request){
+	w.WriteHeader(200)
+	w.Write([]byte("SUCCESS!"))
 }
 
 func endpoint(w http.ResponseWriter, r *http.Request){

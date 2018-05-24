@@ -8,19 +8,53 @@ import (
 )
 
 var provider UserProvider
+var securedRouteMap map[string]bool
 
-func LoadUserProvider(p UserProvider){
+func ManageMuxRouter(p UserProvider, routerList ...*mux.Router){
+
 	provider = p
+
+	endpoint,err := findLoginEndpoint()
+	var loginEndpoint string
+	if err == nil {
+		loginEndpoint = endpoint.Path
+	}else{
+		loginEndpoint = "/login"
+	}
+	routerList[0].HandleFunc(loginEndpoint, provideLoginEndpoint)
+	securedRouteMap = make(map[string]bool)
+
+	for _, router := range routerList{
+		initSecurePathList(router)
+
+		router.Use(secureRoute)
+	}
+	log.Println(securedRouteMap)
 }
 
-func AdjustMuxEndpoints(router *mux.Router){
-
-	router.Use(secureRoute)
-
-	xmlEndpoints := provideEndpoints()
-	for _,endpoint := range xmlEndpoints.EndpointList {
-		router.NewRoute().Path(endpoint.Path).Methods(endpoint.Method)
+func initSecurePathList(router *mux.Router){
+	for _,route := range readRoutes(router){
+		tpl,err := route.GetPathTemplate()
+		if err == nil {
+			if isSecuredPartRoute(tpl) || isSecuredEndpoint(tpl) {
+				securedRouteMap[tpl] = true
+			}else{
+				securedRouteMap[tpl] = false
+			}
+		}
 	}
+}
+
+func readRoutes(router *mux.Router) []mux.Route{
+
+	var routes []mux.Route
+
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		routes = append(routes,*route)
+		return nil
+	})
+
+	return routes
 }
 
 func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
@@ -45,35 +79,30 @@ func provideLoginEndpoint(w http.ResponseWriter, req *http.Request){
 			}
 		}
 	}else{
-		log.Fatal("You have to load/inject a UserProvider via the LoadUserProvider function")
+		log.Fatal("You have to load/inject a UserProvider via the loadUserProvider function")
 	}
 }
 
-func provideSecuredEndpoint(w http.ResponseWriter, req *http.Request) error{
+func provideSecuredEndpoint(req *http.Request) error{
 
 	_,err := verifyTokenExtractClaims(req)
 
 	return err
 }
 
-//Middleware to secure the given route
-func secureRoute(h http.Handler) http.Handler {
+//middleware to secure all routes after the given router/subRouter
+func secureRoute(h http.Handler) http.Handler{
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		endpoints := findEndpoints(r.RequestURI)
 
-		for _,endpoint := range endpoints{
-			if endpoint.Type == "secured"{
-				err := provideSecuredEndpoint(w,r)
-				if err != nil {
-					w.WriteHeader(http.StatusUnauthorized)
-				}else {
-					h.ServeHTTP(w, r)
-				}
-			}else if endpoint.Type =="login"{
-				provideLoginEndpoint(w,r)
-			}else{
+		if securedRouteMap[r.RequestURI]{
+			err := provideSecuredEndpoint(r)
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+			}else if h != nil{
 				h.ServeHTTP(w,r)
 			}
+		}else{
+			h.ServeHTTP(w,r)
 		}
 	})
 }
