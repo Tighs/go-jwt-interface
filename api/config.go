@@ -130,16 +130,29 @@ func isSecuredPartRoute(path string) bool {
 	return false
 }
 
-func findLoginEndpoint() (xmlEndpoint,error){
+
+func findLoginEndpoint() string{
 	for _,endpoint := range config.Endpoints.EndpointList{
 		if endpoint.Type == loginType{
-			return endpoint,nil
+			return endpoint.Path
 		}
 	}
-	return xmlEndpoint{},errors.New("no specified login entry found")
+	return "/login"
 }
 
+func (c *xmlConfiguration)getPathList() []string {
+	var list []string
 
+	for _,endpoint := range  c.Endpoints.EndpointList{
+		list = append(list,endpoint.Path)
+	}
+
+	for _,route := range c.Endpoints.RouteList{
+		list = append(list,route.Path)
+	}
+
+	return list
+}
 
 type xmlEndpoint struct {
 	XMLName xml.Name `xml:"endpoint"`
