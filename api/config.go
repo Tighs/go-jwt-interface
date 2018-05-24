@@ -6,6 +6,7 @@ import (
 	"os"
 	"log"
 	"errors"
+	"strings"
 )
 
 var configFilePath = "config/config.xml"
@@ -16,6 +17,11 @@ func init(){
 
 	loadConfigFile()
 }
+
+const(
+	securedType = "secured"
+	loginType = "login"
+)
 
 func loadConfigFile(){
 
@@ -48,25 +54,6 @@ func loadConfigFile(){
 	log.Printf("KeyPair %s loaded ", config.Key.Name)
 }
 
-
-func findEndpoints(path string) []xmlEndpoint {
-
-	var list []xmlEndpoint
-
-	for _,endpoint := range config.Endpoints.EndpointList {
-		if endpoint.Path == path{
-			list = append(list,endpoint)
-		}
-	}
-	return list
-}
-
-func provideEndpoints() xmlEndpoints {
-
-	return config.Endpoints
-
-}
-
 func readConfigFile(reader io.Reader) (xmlConfiguration,[]error){
 	var config xmlConfiguration
 	var errorList []error
@@ -76,7 +63,13 @@ func readConfigFile(reader io.Reader) (xmlConfiguration,[]error){
 
 	for _,endpoint := range config.Endpoints.EndpointList {
 		if  endpoint.Type == "" || endpoint.Path == "" ||  endpoint.Method == "" {
-			errorList =append(errorList, errors.New("endpoint values must be present"))
+			errorList = append(errorList, errors.New("endpoint values must be present"))
+		}
+	}
+
+	for _,route := range config.Endpoints.RouteList{
+		if route.Path == ""{
+			errorList = append(errorList,errors.New("route path must be defined"))
 		}
 	}
 
@@ -94,6 +87,60 @@ func readConfigFile(reader io.Reader) (xmlConfiguration,[]error){
 	return config,nil
 }
 
+func isSecuredEndpoint(path string) bool{
+
+	part := strings.Split(path,"/")
+
+	last := "/"+part[len(part)-1]
+
+	for _,endpoint := range config.Endpoints.EndpointList{
+		if endpoint.Type == securedType{
+			//double check is needed because and endpoint can be defined as "real" endpoint or as an route
+			//e.g <endpoint type="secured" path="/secured/test" method="GET"/>
+			// or <route path="/secured"/>
+			//    <endpoint type="secured" path="/test" method="GET"/>
+			if endpoint.Path == last || endpoint.Path == path{
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isSecuredRoute(path string) bool{
+	for _,route := range config.Endpoints.RouteList{
+		if route.Path == path{
+			return true
+		}
+	}
+
+	return false
+}
+
+func isSecuredPartRoute(path string) bool {
+	parts := strings.Split(path,"/")
+	//cut the last part => it is not a valid route instead it is an endpoint
+	parts = parts[0:len(parts)-1]
+
+	for _,part := range parts{
+		if isSecuredRoute("/"+part){
+			return true
+		}
+	}
+	return false
+}
+
+func findLoginEndpoint() (xmlEndpoint,error){
+	for _,endpoint := range config.Endpoints.EndpointList{
+		if endpoint.Type == loginType{
+			return endpoint,nil
+		}
+	}
+	return xmlEndpoint{},errors.New("no specified login entry found")
+}
+
+
+
 type xmlEndpoint struct {
 	XMLName xml.Name `xml:"endpoint"`
 	Type string `xml:"type,attr"`
@@ -101,9 +148,15 @@ type xmlEndpoint struct {
 	Method string `xml:"method,attr"`
 }
 
+type xmlRoute struct{
+	XMLName xml.Name `xml:"route"`
+	Path string `xml:"path,attr"`
+}
+
 type xmlEndpoints struct {
 	XMLName      xml.Name      `xml:"endpoints"`
 	EndpointList []xmlEndpoint `xml:"endpoint"`
+	RouteList []xmlRoute `xml:"route"`
 }
 
 type xmlKey struct {
